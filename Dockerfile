@@ -10,10 +10,11 @@ ARG TARGETARCH
 ENV CGO_ENABLED=0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
-    go build -trimpath -ldflags="-s -w" -o /out/world-zap .
+    go build -trimpath -ldflags="-s -w" -o /out/world-gw .
 
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/world-zap /world-zap
+COPY --from=build /out/world-gw /world-gw
+# Single listener serves both /zap (WebSocket) and /mcp (JSON-RPC/SSE).
 EXPOSE 9999
 USER nonroot
-ENTRYPOINT ["/world-zap"]
+ENTRYPOINT ["/world-gw"]

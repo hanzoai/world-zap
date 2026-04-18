@@ -69,18 +69,35 @@ func newMux(d *serverDeps) http.Handler {
 	mux.HandleFunc("/zap", func(w http.ResponseWriter, r *http.Request) {
 		zapHandler(d, w, r)
 	})
+	// MCP (Model Context Protocol) — same binary, same auth, same tools.
+	mh := newMCPHandler(d)
+	mux.HandleFunc("/mcp", mh.serveHTTP)
+	mux.HandleFunc("/mcp/", mh.serveHTTP)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			writeJSON(w, http.StatusOK, map[string]any{
-				"service": "world-zap",
-				"endpoint": "wss://zap.world.hanzo.ai/zap",
-				"topics":  hub.TopicNames(),
+				"service": "world-gw",
+				"version": version,
+				"endpoints": map[string]any{
+					"zap": "wss://zap.world.hanzo.ai/zap",
+					"mcp": "https://mcp.world.hanzo.ai/mcp",
+				},
+				"topics": hub.TopicNames(),
+				"tools":  mcpToolNames(),
 			})
 			return
 		}
 		http.NotFound(w, r)
 	})
 	return mux
+}
+
+func mcpToolNames() []string {
+	out := make([]string, 0, len(mcpToolCatalog))
+	for _, t := range mcpToolCatalog {
+		out = append(out, t.Name)
+	}
+	return out
 }
 
 // zapHandler upgrades the HTTP request to a websocket and delegates to a
