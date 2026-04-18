@@ -16,8 +16,7 @@ jobs:
   build:
     uses: hanzoai/.github/.github/workflows/docker-build.yml@main
     with:
-      image-name: world-zap
-      registry: ghcr.io
+      image: ghcr.io/hanzoai/world-zap
       context: .
       dockerfile: Dockerfile
       platforms: linux/amd64,linux/arm64
