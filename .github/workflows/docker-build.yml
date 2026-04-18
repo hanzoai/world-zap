@@ -19,5 +19,6 @@ jobs:
       image: ghcr.io/hanzoai/world-zap
       context: .
       dockerfile: Dockerfile
-      platforms: linux/amd64,linux/arm64
+      # amd64 only — DOKS is x86, ARM ARC runner flaking on `go mod download`.
+      platforms: linux/amd64
     secrets: inherit
