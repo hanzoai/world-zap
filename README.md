@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/hero.svg" alt="world-zap" width="880"></p>
+
 # world-gw (repo: hanzoai/world-zap)
 
 **One Go binary. MCP + ZAP native, same process.** Serves two protocols for Hanzo World real-time feeds.
