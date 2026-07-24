@@ -4,8 +4,8 @@
 
 **One Go binary. MCP + ZAP native, same process.** Serves two protocols for Hanzo World real-time feeds.
 
-- **ZAP** — binary-framed WebSocket for µs-latency pub/sub at `wss://zap.world.hanzo.ai/zap`
-- **MCP** — Model Context Protocol (JSON-RPC 2.0 over Streamable HTTP) at `https://mcp.world.hanzo.ai/mcp`
+- **ZAP** — binary-framed WebSocket for µs-latency pub/sub at `wss://api.hanzo.ai/v1/world/zap`
+- **MCP** — Model Context Protocol (JSON-RPC 2.0 over Streamable HTTP) at `https://api.hanzo.ai/v1/world/mcp`
 
 Both endpoints share auth (IAM bearer token), rate limiter (plan-tier token bucket), tool registry, and the feed ingester. No separate Node sidecar. The image is `ghcr.io/hanzoai/world-zap` but the binary and K8s Deployment are named `world-gw`.
 
@@ -46,7 +46,7 @@ All tools proxy to the worldmonitor backend under `/v1/world/*`.
   "mcpServers": {
     "world": {
       "type": "sse",
-      "url": "https://mcp.world.hanzo.ai/mcp",
+      "url": "https://api.hanzo.ai/v1/world/mcp",
       "headers": { "Authorization": "Bearer $HANZO_WORLD_TOKEN" }
     }
   }
@@ -57,19 +57,19 @@ All tools proxy to the worldmonitor backend under `/v1/world/*`.
 
 ```bash
 # MCP — list tools
-curl -sS -X POST https://mcp.world.hanzo.ai/mcp \
+curl -sS -X POST https://api.hanzo.ai/v1/world/mcp \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq .
 
 # MCP — call a tool
-curl -sS -X POST https://mcp.world.hanzo.ai/mcp \
+curl -sS -X POST https://api.hanzo.ai/v1/world/mcp \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_feeds","arguments":{}}}' | jq .
 
 # ZAP — subscribe to earthquakes
-wscat -c "wss://zap.world.hanzo.ai/zap?token=$TOKEN" --binary
+wscat -c "wss://api.hanzo.ai/v1/world/zap?token=$TOKEN" --binary
 # send INIT (0x01), then CALL_TOOL (0x22) subscribe to world.events.earthquakes
 ```
 
@@ -83,6 +83,6 @@ BACKEND_BASE=http://localhost:5173 IAM_ENDPOINT=https://hanzo.id ./bin/world-gw
 
 ## Deploy
 
-K8s: `infra/k8s/world/gw-deployment.yaml` (single Deployment + Service in `hanzo` namespace, port 9999). Ingress routes both `mcp.world.hanzo.ai` and `zap.world.hanzo.ai` at the same Service.
+K8s: `infra/k8s/world/gw-deployment.yaml` (single Deployment + Service in `hanzo` namespace, port 9999). The unified-API ingress (api.hanzo.ai/v1/world/{mcp,zap}) rewrites to this Service — no standalone hosts.
 
 Image: `ghcr.io/hanzoai/world-zap:v0.1.0` (multi-arch amd64+arm64, distroless).

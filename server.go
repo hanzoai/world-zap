@@ -78,9 +78,13 @@ func newMux(d *serverDeps) http.Handler {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"service": "world-gw",
 				"version": version,
+				// ONE public surface: the unified API host. The standalone
+				// mcp/zap.world.hanzo.ai hosts are retired (owner directive:
+				// everything rides api.hanzo.ai; the ingress rewrites
+				// /v1/world/{mcp,zap} to this binary's native /mcp and /zap).
 				"endpoints": map[string]any{
-					"zap": "wss://zap.world.hanzo.ai/zap",
-					"mcp": "https://mcp.world.hanzo.ai/mcp",
+					"zap": "wss://api.hanzo.ai/v1/world/zap",
+					"mcp": "https://api.hanzo.ai/v1/world/mcp",
 				},
 				"topics": hub.TopicNames(),
 				"tools":  mcpToolNames(),
