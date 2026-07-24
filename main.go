@@ -1,7 +1,7 @@
 // Command world-zap bridges the worldmonitor backend to a ZAP-over-WebSocket
 // gateway for real-time feed fan-out.
 //
-//	wss://zap.world.hanzo.ai/zap?token=<IAM_TOKEN>
+//	wss://api.hanzo.ai/v1/world/zap?token=<IAM_TOKEN>
 //
 // Topics are published by an ingester goroutine that streams from
 // WORLD_BACKEND/v1/world/events?stream=1 and fans out via the hub.

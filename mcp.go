@@ -8,7 +8,7 @@ package main
 //
 // Clients connect with:
 //
-//	POST https://mcp.world.hanzo.ai/mcp
+//	POST https://api.hanzo.ai/v1/world/mcp
 //	Authorization: Bearer <IAM_TOKEN>
 //	{"jsonrpc":"2.0","id":1,"method":"initialize", ...}
 //
@@ -16,6 +16,7 @@ package main
 // Tools proxy to the worldmonitor backend /v1/world/* endpoints.
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -194,19 +195,26 @@ func (h *mcpHandler) authenticatePrincipal(ctx context.Context, token string) (*
 
 // dispatchTool maps a tool name + args to a backend call.
 func (h *mcpHandler) dispatchTool(ctx context.Context, token, name string, args map[string]any) (mcpToolResult, error) {
-	path, err := routeTool(name, args)
+	method, path, body, err := routeTool(name, args)
 	if err != nil {
 		return mcpToolResult{}, err
 	}
 
 	// Build request to worldmonitor backend
 	reqURL := h.backend + path
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	var rd io.Reader
+	if body != nil {
+		rd = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, rd)
 	if err != nil {
 		return mcpToolResult{}, err
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
 	resp, err := h.client.Do(req)
@@ -214,22 +222,22 @@ func (h *mcpHandler) dispatchTool(ctx context.Context, token, name string, args 
 		return mcpToolResult{}, err
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20)) // 4 MiB cap
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20)) // 4 MiB cap
 
 	if resp.StatusCode >= 400 {
 		return mcpToolResult{
-			Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("upstream %d: %s", resp.StatusCode, string(body))}},
+			Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("upstream %d: %s", resp.StatusCode, string(respBody))}},
 			IsError: true,
 		}, nil
 	}
 	// Return the raw JSON body as a text block. Agents can parse.
 	return mcpToolResult{
-		Content: []mcpContent{{Type: "text", Text: string(body)}},
+		Content: []mcpContent{{Type: "text", Text: string(respBody)}},
 	}, nil
 }
 
 // routeTool maps a tool name to a /v1/world/* query path with arguments.
-func routeTool(name string, args map[string]any) (string, error) {
+func routeTool(name string, args map[string]any) (method, path string, body []byte, err error) {
 	q := url.Values{}
 	add := func(k string) {
 		if v, ok := args[k]; ok {
@@ -242,39 +250,52 @@ func routeTool(name string, args map[string]any) (string, error) {
 		add("layers")
 		add("since")
 		add("limit")
-		return "/v1/world/events?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/events?" + q.Encode(), nil, nil
 	case "query_conflicts":
 		add("country")
 		add("since")
 		add("severity")
-		return "/v1/world/conflicts?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/conflicts?" + q.Encode(), nil, nil
 	case "query_infrastructure":
 		add("type")
 		add("near")
-		return "/v1/world/infra?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/infra?" + q.Encode(), nil, nil
 	case "track_vessel":
 		add("mmsi")
 		add("imo")
 		add("name")
-		return "/v1/world/vessel?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/vessel?" + q.Encode(), nil, nil
 	case "list_live_news":
 		add("category")
 		add("limit")
-		return "/v1/world/news?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/news?" + q.Encode(), nil, nil
 	case "get_markets":
 		add("ticker")
 		add("category")
-		return "/v1/world/markets?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/markets?" + q.Encode(), nil, nil
 	case "list_feeds":
-		return "/v1/world/feeds", nil
+		return http.MethodGet, "/v1/world/feeds", nil, nil
 	case "ask_analyst":
 		// POST passthrough; we encode question into a POST body via a
 		// secondary path. Keep GET semantics simple — proxy to chat with the
 		// question as a system input.
 		add("question")
-		return "/v1/world/analyst?" + q.Encode(), nil
+		return http.MethodGet, "/v1/world/analyst?" + q.Encode(), nil, nil
+	case "publish_dashboard":
+		// PUT the caller's dashboard doc as the ORG-SHARED default
+		// (/v1/world/dashboard/shared). The backend enforces org-admin —
+		// non-admins get its 403 passed straight through.
+		doc, ok := args["dashboard"]
+		if !ok {
+			return "", "", nil, fmt.Errorf("publish_dashboard: missing required argument 'dashboard'")
+		}
+		b, merr := json.Marshal(doc)
+		if merr != nil {
+			return "", "", nil, fmt.Errorf("publish_dashboard: dashboard not serializable: %w", merr)
+		}
+		return http.MethodPut, "/v1/world/dashboard/shared", b, nil
 	default:
-		return "", fmt.Errorf("unknown tool: %s", name)
+		return "", "", nil, fmt.Errorf("unknown tool: %s", name)
 	}
 }
 
@@ -344,6 +365,16 @@ var mcpToolCatalog = []mcpTool{
 		InputSchema: schemaObject(map[string]any{
 			"question": schemaString("Natural-language question"),
 		}, []string{"question"}),
+	},
+	{
+		Name:        "publish_dashboard",
+		Description: "Publish a dashboard config as the caller's ORG-SHARED default (org-admin only; every org member hydrates it as their base layout).",
+		InputSchema: schemaObject(map[string]any{
+			"dashboard": map[string]any{
+				"type":        "object",
+				"description": "The dashboard doc (opaque blob — same shape the world.hanzo.ai frontend syncs to /v1/world/dashboard).",
+			},
+		}, []string{"dashboard"}),
 	},
 }
 
