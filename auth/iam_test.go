@@ -35,7 +35,7 @@ func TestValidateCachedAndAdmin(t *testing.T) {
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		if r.URL.Path != "/oauth/userinfo" {
+		if r.URL.Path != "/v1/iam/oauth/userinfo" {
 			t.Errorf("wrong path %s", r.URL.Path)
 		}
 		if got := r.Header.Get("Authorization"); got != "Bearer tok" {
