@@ -1,4 +1,4 @@
-// Package auth validates IAM bearer tokens via the hanzo.id /oauth/userinfo
+// Package auth validates IAM bearer tokens via the hanzo.id /v1/iam/oauth/userinfo
 // endpoint and returns a Principal that downstream components use for
 // authorization.
 //
@@ -92,7 +92,7 @@ func ExtractToken(r *http.Request) string {
 	return ""
 }
 
-// Validate looks up the token in cache, falling back to /oauth/userinfo.
+// Validate looks up the token in cache, falling back to /v1/iam/oauth/userinfo.
 func (v *Validator) Validate(ctx context.Context, token string) (Principal, error) {
 	if token == "" {
 		return Principal{}, ErrInvalidToken
@@ -118,7 +118,7 @@ func (v *Validator) Validate(ctx context.Context, token string) (Principal, erro
 }
 
 func (v *Validator) fetchUserInfo(ctx context.Context, token string) (Principal, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.endpoint+"/oauth/userinfo", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.endpoint+"/v1/iam/oauth/userinfo", nil)
 	if err != nil {
 		return Principal{}, fmt.Errorf("%w: %v", ErrUpstream, err)
 	}
