@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	luxtrace "github.com/luxfi/trace"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -17,14 +17,12 @@ func initOtel(ctx context.Context, endpoint, serviceName, version string) (func(
 	if endpoint == "" {
 		return func(context.Context) error { return nil }, nil
 	}
-	opts := []otlptracehttp.Option{}
-	ep := strings.TrimPrefix(endpoint, "https://")
-	ep = strings.TrimPrefix(ep, "http://")
-	opts = append(opts, otlptracehttp.WithEndpoint(ep))
-	if strings.HasPrefix(endpoint, "http://") {
-		opts = append(opts, otlptracehttp.WithInsecure())
-	}
-	exp, err := otlptracehttp.New(ctx, opts...)
+	// ZAP takes host:port; a URL scheme has no meaning on this wire.
+	ep := strings.TrimPrefix(strings.TrimPrefix(endpoint, "https://"), "http://")
+	exp, err := luxtrace.NewZAPExporter(
+		luxtrace.ExporterConfig{Type: luxtrace.ZAP, Endpoint: ep},
+		serviceName, version,
+	)
 	if err != nil {
 		return nil, err
 	}
