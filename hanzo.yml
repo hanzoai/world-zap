@@ -1,0 +1,28 @@
+# Hanzo world-zap — the one file that says how this repo builds, gates and ships.
+#
+# It replaces a caller of hanzoai/.github's docker-build.yml, which pushes to
+# ghcr and stops there. hanzoai/ci's build.yml makes the same push and then
+# copies the tag set to oci.hanzo.ai server-side, so the image exists at both
+# addresses. ghcr stays as the public mirror — the same arrangement source has,
+# with the forge canonical and GitHub mirroring it.
+#
+# TARGETOS and TARGETARCH are the only ARGs and buildx supplies both
+# automatically, so nothing needs declaring here.
+#
+# The version is derived, never typed: this repo declares no manifest, so imgver
+# takes the registry floor (1.1.0 today) and publishes the next patch.
+
+test:
+  - name: build-and-vet
+    run: |
+      set -e
+      go build ./...
+      go vet ./...
+
+images:
+  - name: world-zap
+    context: .
+    dockerfile: Dockerfile
+    repo: ghcr.io/hanzoai/world-zap
+    platforms:
+      - linux/amd64
