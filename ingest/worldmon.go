@@ -126,8 +126,8 @@ func (i *Ingester) stream(ctx context.Context) error {
 		if line == "" {
 			continue
 		}
-		if strings.HasPrefix(line, "data:") {
-			line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if after, ok := strings.CutPrefix(line, "data:"); ok {
+			line = strings.TrimSpace(after)
 		}
 		if line == "" || line == "[DONE]" {
 			continue

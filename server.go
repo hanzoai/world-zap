@@ -156,8 +156,8 @@ func zapHandler(d *serverDeps, w http.ResponseWriter, r *http.Request) {
 
 func clientIP(r *http.Request) string {
 	if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-		if i := strings.IndexByte(xf, ','); i >= 0 {
-			return strings.TrimSpace(xf[:i])
+		if before, _, ok := strings.Cut(xf, ","); ok {
+			return strings.TrimSpace(before)
 		}
 		return strings.TrimSpace(xf)
 	}
@@ -198,4 +198,3 @@ func (b *backendHealthClient) Healthy(ctx context.Context) bool {
 	defer res.Body.Close()
 	return res.StatusCode >= 200 && res.StatusCode < 300
 }
-

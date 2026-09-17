@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM golang:1.26.5-alpine AS build
+FROM golang:1.27.1-alpine AS build
 ENV GOTOOLCHAIN=auto
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates

@@ -50,7 +50,7 @@ func TestSlowSubscriberDropped(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 	// Do not drain sub.Channel — force overflow.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_ = h.Publish(Message{Topic: "world.events.all", Payload: []byte(`{}`)})
 	}
 	if sub.DroppedCount() == 0 {

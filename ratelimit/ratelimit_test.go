@@ -22,7 +22,7 @@ func TestPlanCapacity(t *testing.T) {
 
 func TestFreeBurstThenBlock(t *testing.T) {
 	l := New()
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		d := l.TryAcquire("u", "free")
 		if !d.Allowed {
 			t.Fatalf("request %d denied: %+v", i, d)
@@ -39,7 +39,7 @@ func TestFreeBurstThenBlock(t *testing.T) {
 
 func TestPerUserIsolation(t *testing.T) {
 	l := New()
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		l.TryAcquire("a", "free")
 	}
 	if l.TryAcquire("a", "free").Allowed {
@@ -53,7 +53,7 @@ func TestPerUserIsolation(t *testing.T) {
 func TestPlanUpgradeResetsBucket(t *testing.T) {
 	l := New()
 	// burn free tokens
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		l.TryAcquire("u", "free")
 	}
 	if l.TryAcquire("u", "free").Allowed {
